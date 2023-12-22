@@ -1,10 +1,10 @@
 using System;
 using System.Collections;
 using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
-using System.Runtime.InteropServices;
 
 namespace MoscowTime
 {
@@ -12,21 +12,34 @@ namespace MoscowTime
    {
        [SerializeField] Button _button;
        
+       private Coroutine _getTimeRoutine;
+       
        private const string _api            = "http://worldtimeapi.org/api/timezone/";
        private const string _timeZone       = "Europe/Moscow";
-   
-       private void Start()
+
+       #region Mono
+
+       private void OnEnable()
        {
-           _button.onClick.AddListener( () => StartCoroutine( GetMoscowTime() ) );
+           _button.onClick.AddListener( HandleGetMoscowTime );
        }
-   
-   #region DllImport
+
+       private void OnDisable()
+       {
+           _button.onClick.RemoveListener( HandleGetMoscowTime );
+           
+           if (_getTimeRoutine != null)
+               StopCoroutine( _getTimeRoutine );
+       }
+
+       #endregion
+       #region DllImport
    
        [DllImport("__Internal")]
        private static extern void Alert(string str);
        
-   #endregion
-   
+       #endregion
+
        private IEnumerator GetMoscowTime()
        {
            using UnityWebRequest www = UnityWebRequest.Get($"{_api}{_timeZone}");
@@ -35,7 +48,7 @@ namespace MoscowTime
    
            if ( www.result != UnityWebRequest.Result.Success )
            {
-               Debug.LogError("Error: " + www.error);
+               Debug.LogError( "Error: " + www.error );
                yield break;
            }
    
@@ -47,11 +60,11 @@ namespace MoscowTime
                yield break;
            }
            
-           #if !UNITY_EDITOR
-           Alert( parsedString );
-           #else
-           Debug.Log( parsedString );
-           #endif
+#if !UNITY_EDITOR
+            Alert( parsedString );
+#else
+            Debug.Log( parsedString );
+#endif
        }
    
        private bool TryParseResponseToTimeString( string response, out string parsedString )
@@ -67,6 +80,8 @@ namespace MoscowTime
    
            return parsedString != string.Empty;
        }
+
+       private void HandleGetMoscowTime() => _getTimeRoutine = StartCoroutine( GetMoscowTime() );
    } 
 }
 
