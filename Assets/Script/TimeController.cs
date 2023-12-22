@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
-
+using System.Runtime.InteropServices;
 
 public class TimeController : MonoBehaviour
 {
@@ -11,13 +11,19 @@ public class TimeController : MonoBehaviour
     
     private const string _api            = "http://worldtimeapi.org/api/timezone/";
     private const string _timeZone       = "Europe/Moscow";
-    private const string _javaFunc       = "alert";
 
     private void Start()
     {
         _button.onClick.AddListener( () => StartCoroutine( GetMoscowTime() ) );
     }
+
+#region DllImport
+
+    [DllImport("__Internal")]
+    private static extern void Alert(string str);
     
+#endregion
+
     private IEnumerator GetMoscowTime()
     {
         using UnityWebRequest www = UnityWebRequest.Get($"{_api}{_timeZone}");
@@ -32,9 +38,12 @@ public class TimeController : MonoBehaviour
         {
             string response        = www.downloadHandler.text;
             string parsedTime      = ParseResponseToTimeString( response );
-
-            Application
-                .ExternalCall(_javaFunc,  parsedTime );
+            
+            #if !UNITY_EDITOR
+            Alert( parsedTime );
+            #else
+            Debug.Log( parsedTime );
+            #endif
         }
     }
 
