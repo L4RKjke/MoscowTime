@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Text.RegularExpressions;
 using UnityEngine;
@@ -30,28 +31,38 @@ public class TimeController : MonoBehaviour
         
         yield return www.SendWebRequest();
 
-        if (www.isNetworkError || www.isHttpError)
+        if ( www.result != UnityWebRequest.Result.Success )
         {
-            Debug.Log(www.error);
+            Debug.LogError("Error: " + www.error);
+            yield break;
         }
-        else
+
+        string response        = www.downloadHandler.text;
+
+        if ( !TryParseResponseToTimeString( response, out string parsedString ) )
         {
-            string response        = www.downloadHandler.text;
-            string parsedTime      = ParseResponseToTimeString( response );
-            
-            #if !UNITY_EDITOR
-            Alert( parsedTime );
-            #else
-            Debug.Log( parsedTime );
-            #endif
+            Debug.LogError("Error: " + www.error);
+            yield break;
         }
+        
+        #if !UNITY_EDITOR
+        Alert( parsedString );
+        #else
+        Debug.Log( parsedString );
+        #endif
     }
 
-    private string ParseResponseToTimeString( string response )
+    private bool TryParseResponseToTimeString( string response, out string parsedString )
     {
         string pattern     = "\"datetime\":\"(.*?)\"";
         Match match        = Regex.Match(response, pattern);
+        string matchText   = match.Groups[1].Value;
         
-        return match.Groups[1].Value;
+        parsedString = "";
+        
+        if ( DateTimeOffset.TryParse( matchText, out DateTimeOffset parsedDateTime ) )
+            parsedString = parsedDateTime.ToString( "HH:mm:ss" );
+
+        return parsedString != String.Empty;
     }
 }
